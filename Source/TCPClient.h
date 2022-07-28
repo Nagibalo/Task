@@ -1,23 +1,20 @@
 #ifndef TCPCLIENT_H
 #define TCPCLIENT_H
 #include "TCPSocket.h"
+#include "TerminalOuput.h"
 #include <memory>
-#include <ctime>
-
-//https://pubs.opengroup.org/onlinepubs/7908799/xns/syssocket.h.html sys/socket.h documentation
 
 class TCPClient
 {
 private:
     std::unique_ptr<TCPSocket> client_socket;
+    int getCorrectInputInt(const std::string& nameValue, int min, int max);
 public:
     TCPClient();
     TCPClient(int port, const std::string &host_address);
     bool ConnectToServer();
     void RunCommunication();
-    void ShutDown();
-    void PrintMessage(const std::string &message);
-    void PrintMessage(const char *message);
+    void Shutdown();
 };
 
 #endif // TCPCLIENT_H

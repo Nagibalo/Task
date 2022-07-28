@@ -10,6 +10,6 @@ int main(int argc, char const *argv[])
     {  
        return -1; 
     }
-    server.RunServer();
+    server.RunAcceptConnections();
     return 0;
 }
