@@ -1,5 +1,6 @@
 # TCP-Client-Server
 Simple multithread server based on TCP-protocol and client
+Server includes echo-service and file-service. Communication with the server occurs through commands
 
 Target platform: Linux
 
@@ -21,3 +22,7 @@ Using technology:
 3) TCPClient - client class includes TCPSocket. Main fucntion:
 * Create client socket
 * Communicate with server
+4) ThreadPool - thread pool class includes vector of threads, mutex condition and queue of tasks. Main fucntion:
+* Create threads with task wait loop
+* Add task in queue
+* Correct terminate all threads
