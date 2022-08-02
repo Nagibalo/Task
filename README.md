@@ -26,3 +26,19 @@ Using technology:
 * Create threads with task wait loop
 * Add task in queue
 * Correct terminate all threads
+
+# Work server
+1. Run
+<div id="header" align="center">
+  <img src="https://github.com/VivanDenon/Images/blob/main/TCPServer/TCPServer.PNG"/>
+</div>
+
+2. Closed
+<div id="header">
+  <img src="https://github.com/VivanDenon/Images/blob/main/TCPServer/TCPServerClosed.PNG"/>
+</div>
+
+# Work client
+<div id="header" align="center">
+  <img src="https://github.com/VivanDenon/Images/blob/main/TCPServer/TCPClient.PNG"/>
+</div>
