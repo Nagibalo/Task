@@ -32,7 +32,7 @@ TCPSocket::TCPSocket(const TCPSocket& socket) : socket_fd(socket.socket_fd),
 
 void TCPSocket::SetSocketOption(int option) {
     if (setsockopt(socket_fd, SOL_SOCKET,
-                   SO_REUSEADDR | SO_REUSEPORT, &option, // SO_REUSERADDR && SO_REUSEPORT reuse port and address
+                   SO_REUSEADDR | SO_REUSEPORT | SO_KEEPALIVE, &option, // SO_REUSERADDR && SO_REUSEPORT reuse port and address
                    sizeof(option)) == -1)
         throw errno;
 }
@@ -54,12 +54,12 @@ void TCPSocket::Listen(int max_count_connection_requests) {
 }
 
 std::shared_ptr<TCPSocket> TCPSocket::Accept() {
-    std::unique_ptr<sockaddr_in> client_address(new sockaddr_in);
+    auto client_address = std::make_unique<sockaddr_in>();
     int new_socket_fd, len_address = sizeof(*client_address);
     new_socket_fd = accept(socket_fd, (struct sockaddr*)client_address.get(), (socklen_t*)&len_address);
     if (new_socket_fd == -1) 
         throw errno;
-    std::shared_ptr<TCPSocket> newSocket(new TCPSocket(new_socket_fd, client_address, segment_size));
+    auto newSocket = std::make_shared<TCPSocket>(new_socket_fd, client_address, segment_size);
     return newSocket;
 }
 
@@ -117,9 +117,9 @@ void TCPSocket::SendMessage(const char* message) {
 
 std::string TCPSocket::RecvMessage() {
     std::string data;
+    char buffer[segment_size + 1] = {0}; // null-terminated c-string
     int value = 0;
     do {
-        char buffer[segment_size + 1] = {0}; // null-terminated c-string
         if (recv(socket_fd, buffer, segment_size, 0) <= 0)
             throw errno;
         if(ioctl(socket_fd, FIONREAD, &value) == -1)
@@ -132,44 +132,55 @@ std::string TCPSocket::RecvMessage() {
 
 void TCPSocket::SendFile(std::ifstream &fs) 
 {
+    std::string buffer(segment_size, ' ');
     while(fs)
     {
-        char buffer[segment_size] = {0};
-        fs.read(buffer, segment_size);
-        size_t number_sent_byte = send(socket_fd, buffer, segment_size, 0);
+        fs.read(buffer.data(), segment_size);
+        if(fs.bad())
+        {
+            fs.close();
+            throw errno;
+        }
+        size_t number_sent_byte = send(socket_fd, buffer.data(), segment_size, 0);
         if(number_sent_byte == -1)
         {   
             fs.close();
             throw errno;
         }
-        size_t len = strlen(buffer);
-        if(number_sent_byte != len)
-            fs.seekg(number_sent_byte - len);
     }  
 }
 
 void TCPSocket::DownloadFile(std::ofstream &fs, size_t file_size) 
 { 
-    char buffer[segment_size + 1] = {0};
     size_t total_recv_byte = 0;
-    while(total_recv_byte < file_size)
-    {
-        size_t number_recv_byte = recv(socket_fd, buffer, segment_size, 0);
+    std::string buffer(segment_size, ' ');
+    while(total_recv_byte <= file_size)
+    {   
+        size_t number_recv_byte = recv(socket_fd, buffer.data(), segment_size, 0);
         if (number_recv_byte == -1) 
         {
             fs.close();
             throw errno;
         }
-        fs << buffer;
+        fs.write(buffer.data(), number_recv_byte);
+        if(fs.bad())
+        {
+            fs.close();
+            throw errno;
+        }
         fs.flush();
         total_recv_byte += number_recv_byte;
     }  
 }
 
 void TCPSocket::Shutdown() {
-    std::cout << "shut";
     shutdown(socket_fd, SHUT_RDWR);
 }
+
+void TCPSocket::Close() {
+    close(socket_fd);
+}
+
 
 int TCPSocket::GetPort() {
     return address->sin_port;

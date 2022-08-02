@@ -3,7 +3,7 @@
 void ThreadPool::Start(int count_thread) {
     threads.resize(count_thread);
     for (int i = 0; i < count_thread; i++) {
-        threads.at(i) = std::thread([this] {ThreadLoop();});
+        threads.at(i) = std::thread(std::bind(&ThreadPool::ThreadLoop, this));
     }
 }
 
@@ -36,6 +36,8 @@ void ThreadPool::QueueJob(const std::function<void()> &job) {
 void ThreadPool::Stop() {
     {
         std::unique_lock<std::mutex> lock(queue_mutex);
+        while (!jobs.empty())
+            jobs.pop();
         should_terminate = true;
     }
     mutex_condition.notify_all();

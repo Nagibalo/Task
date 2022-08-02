@@ -14,6 +14,9 @@ TCPServer::TCPServer(int port, const std::string &host_address,
 
 }
     
+TCPServer::~TCPServer() {
+    server_socket->Close();
+}
 
 /*! \brief Create server socket, set socket options, bind and listen
  * \return If create success return true */
@@ -23,12 +26,6 @@ bool TCPServer::CreateServer() {
         server_socket->SetSocketOption();
         server_socket->Bind();
         server_socket->Listen(max_count_connection_requests);
-        out::PrintMessage("Server run in " + server_socket->GetAddress() + 
-            ":" + std::to_string(server_socket->GetPort()), out::INFO);
-        out::PrintMessage("Max count of connections = " + std::to_string(max_count_connections), out::INFO);
-        thread_p.Start(count_connections + 1); // 1 thread for run accept connections
-        thread_p.QueueJob([this] {RunAcceptConnections();});
-        RunSignalHander();
         return true;
     }
     catch (int e)
@@ -39,29 +36,43 @@ bool TCPServer::CreateServer() {
     }
 }
 
+/*! \brief Run loop accepting new connections by clients */
+void TCPServer::RunServer() {
+    out::PrintMessage("Server run in " + server_socket->GetAddress() + 
+        ":" + std::to_string(server_socket->GetPort()), out::INFO);
+    out::PrintMessage("Max count of connections = " + std::to_string(max_count_connections), out::INFO);
+    
+    thread_p.Start(max_count_connections + 1); // 1 thread for loop accept connections
+    thread_p.QueueJob(std::bind(&TCPServer::RunAcceptConnections, this));
+    RunSignalHandler();
+}
+
 std::atomic<int> TCPServer::count_connections = 0;
 
 /*! \brief Run loop accepting new connections by clients */
 void TCPServer::RunAcceptConnections() {
     while(is_server_run)
     {   
-        if(count_connections > max_count_connections) {
-            sleep(2);
-            break;
+        if(count_connections >= max_count_connections) {
+            out::PrintMessage("Max count connections. Await...", out::STATUS);
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            continue;
         }
-        
-        out::PrintMessage("Await new connection", out::INFO);
+
+        out::PrintMessage("Await new connection...", out::STATUS);
         try {
             auto client_socket = server_socket->Accept();
             out::PrintMessage("New connection " + client_socket->GetAddress() + 
                 ":" + std::to_string(client_socket->GetPort()), out::INFO);
-            thread_p.QueueJob(std::bind(ClientHandler, client_socket));
+            
+            clients.push_back(client_socket);
+            thread_p.QueueJob(std::bind(&TCPServer::ClientHandler, this, client_socket));
             count_connections.fetch_add(1);
         }
         catch (int e)
         {
             if(e = ECONNRESET)
-                out::PrintMessage("Client socket was closed", out::INFO);
+                out::PrintMessage("Server socket was closed", out::ERROR);
             else
                 out::PrintMessage(std::strerror(e), out::ERROR);
             break;
@@ -94,7 +105,7 @@ void TCPServer::ClientHandler(std::shared_ptr<TCPSocket> socket) {
                         socket->SendMessage("Send file name");
 
                         auto file_name = socket->RecvMessage();
-                        std::ifstream fs(file_name);
+                        std::ifstream fs(file_name, std::ifstream::binary);
                         if(!fs.is_open())
                         {
                             socket->SendMessage(std::to_string(TCPSocket::FILE_NOT_EXIST).data());
@@ -134,8 +145,7 @@ void TCPServer::ClientHandler(std::shared_ptr<TCPSocket> socket) {
                     break;
                 case TCPSocket::EXIT:
                     {
-                        out::PrintMessage("Close client socket", out::INFO);   
-                        socket->Shutdown();
+                        out::PrintMessage("Try to close client socket", out::INFO);   
                     }
                     break;
                 default:
@@ -159,7 +169,10 @@ void TCPServer::ClientHandler(std::shared_ptr<TCPSocket> socket) {
             code = TCPSocket::EXIT;
         }
     }
+    out::PrintMessage("Unconnect " + socket->GetAddress() + 
+        ":" + std::to_string(socket->GetPort()), out::INFO);
     socket->Shutdown();
+    socket.reset();
     count_connections.fetch_sub(1);
 }
 
@@ -181,23 +194,34 @@ void TCPServer::SetSignalHandler() {
     sigaction(SIGHUP,  &action, NULL);
     sigaction(SIGINT,  &action, NULL);
     sigaction(SIGTERM, &action, NULL);
+    sigaction(SIGABRT, &action, NULL);
+    sigaction(SIGQUIT, &action, NULL);
 }
 
 void TCPServer::RunLoopWaitSignal() {
     while (TCPServer::is_server_run) {
-        sleep(2);
+        std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 }
 
-void TCPServer::RunSignalHander() {
+void TCPServer::RunSignalHandler() {
     SetSignalHandler();
     RunLoopWaitSignal();
     out::PrintMessage(strsignal(signal_i), out::INFO);
+
     Shutdown();
+
+    out::PrintMessage("Wait to close connections...", out::STATUS);
+    for(auto &client : clients) {
+        if(client)
+            client->Shutdown();
+    }
     thread_p.Stop();
+
+    out::PrintMessage("Server was closed", out::INFO);
 }
 
 void TCPServer::Shutdown() {
-    out::PrintMessage("Shutdown server socket", out::INFO);
     server_socket->Shutdown();
+    out::PrintMessage("Shutdown server socket", out::INFO);
 }

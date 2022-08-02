@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <unistd.h>
 
 //https://pubs.opengroup.org/onlinepubs/7908799/xns/syssocket.h.html sys/socket.h documentation
 //https://pubs.opengroup.org/onlinepubs/7908799/xns/arpainet.h.html arpa/inet.h documentation (use htons)
@@ -50,6 +51,7 @@ public:
     void SendFile(std::ifstream &fs);
     void DownloadFile(std::ofstream &fs, size_t file_size);
     void Shutdown(); 
+    void Close();
     
     int GetPort();
     std::string GetAddress();

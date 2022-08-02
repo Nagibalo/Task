@@ -8,6 +8,10 @@ TCPClient::TCPClient(int port, const std::string &host_address) {
     client_socket = std::make_unique<TCPSocket>(port, host_address);
 }
 
+TCPClient::~TCPClient() {
+    client_socket->Close();
+}
+
 bool TCPClient::ConnectToServer() {
     try {
         client_socket->CreateSocket();
@@ -30,7 +34,7 @@ void TCPClient::RunCommunication()
     while(code != TCPSocket::EXIT) {
         try { 
             out::PrintMessage(client_socket->RecvMessage(), out::RESPONCE);
-            code = getCorrectInputInt("Command code", TCPSocket::ECHO, TCPSocket::EXIT);
+            code = getCorrectInputInt("command code", TCPSocket::ECHO, TCPSocket::EXIT);
             client_socket->SendMessage(std::to_string(code).data());
             switch (code)
             {
@@ -60,8 +64,9 @@ void TCPClient::RunCommunication()
                         client_socket->SendMessage(std::to_string(TCPSocket::GET_FILE_SIZE).data());
                         std::string file_size = client_socket->RecvMessage();
                         out::PrintMessage("Size " + file_name + " = " + file_size, out::FILE_SERVICE);
-                        
-                        std::ofstream fs("test.txt");
+                        srand(time(0));
+                        int c = rand();
+                        std::ofstream fs(std::to_string(c) + file_name, std::ofstream::binary);
                         if(!fs.is_open())
                         {
                             fs.close();
@@ -113,10 +118,10 @@ void TCPClient::RunCommunication()
 
 int TCPClient::getCorrectInputInt(const std::string& nameValue, int min, int max)
 {
-    int value;
+    int value = 0;
     while (true)
     {
-        std::cout << "Enter " << nameValue << ": ";
+        std::cout << "Enter " << nameValue << ": " << std::flush;
         std::cin >> value;
         if (std::cin.fail()) {
             std::cin.clear();

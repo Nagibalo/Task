@@ -2,8 +2,8 @@
 #define TCPCLIENT_H
 #include "TCPSocket.h"
 #include "TerminalOuput.h"
-#include <memory>
 
+//g++ -o TCPClient main_client.cpp TCPClient.cpp TCPSocket.cpp 
 class TCPClient
 {
 private:
@@ -12,6 +12,7 @@ private:
 public:
     TCPClient();
     TCPClient(int port, const std::string &host_address);
+    ~TCPClient();
     bool ConnectToServer();
     void RunCommunication();
     void Shutdown();
