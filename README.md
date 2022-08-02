@@ -1,7 +1,7 @@
 # TCP-Client-Server
 Simple multithread server based on TCP-protocol and client
 
-Target platform: linux
+Target platform: Linux
 
 Using technology:
 1) Sockets based on sys/socket.h linux 
@@ -13,11 +13,18 @@ Using technology:
 # Classes
 1) TCPSocket - socket class includes struct sockaddr_in, port and perform all action with socket (connect, bind, shutdown and much more)
 2) TCPServer - server class includes TCPSocket. Main fucntion:
+  
   a) Сreate server socket 
+  
   b) Run loop accept connection in threading pool
+  
   c) Run client hadler in threading pool 
+  
   d) Run loop signal handler in main thread
+  
   e) Correct shutdown server/clients socket and terminate thread
 3)  TCPClient - client class includes TCPSocket. Main fucntion:
+  
   a) Create client socket
+  
   b) Communicate with server
